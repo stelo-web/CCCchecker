@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CCC Authentication System</title>
+    <style>
+        :root {
+            --china-red: #CE1126;
+            --china-gold: #FCD116;
+            --bg-color: #f8f9fa;
+        }
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 0;
+            text-align: center;
+        }
+        .header {
+            background-color: var(--china-red);
+            color: var(--china-gold);
+            padding: 20px 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 22px;
+            letter-spacing: 1px;
+        }
+        .header h2 {
+            margin: 5px 0 0 0;
+            font-size: 14px;
+            font-weight: normal;
+        }
+        .camera-container {
+            position: relative;
+            width: 90%;
+            max-width: 400px;
+            aspect-ratio: 4/3;
+            margin: 25px auto;
+            background: #000;
+            border: 4px solid var(--china-red);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        video, canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .scan-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: var(--china-gold);
+            box-shadow: 0 0 15px 5px rgba(252, 209, 22, 0.6);
+            animation: scan 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+            display: none;
+            z-index: 10;
+        }
+        @keyframes scan {
+            0% { top: 0; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
+        }
+        .btn-group {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            padding: 0 10px;
+        }
+        button {
+            background-color: var(--china-red);
+            color: #fff;
+            border: 2px solid #a30d1e;
+            padding: 12px 15px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            max-width: 180px;
+            transition: 0.2s;
+        }
+        button:active {
+            transform: scale(0.97);
+        }
+        button:disabled {
+            background-color: #ccc;
+            border-color: #aaa;
+            color: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+        button span {
+            display: block;
+            font-size: 12px;
+            color: var(--china-gold);
+            margin-top: 4px;
+            font-weight: normal;
+        }
+        button:disabled span {
+            color: #888;
+        }
+        #status-box {
+            margin: 20px auto;
+            padding: 20px;
+            width: 85%;
+            max-width: 380px;
+            background: #fff;
+            border: 2px solid var(--china-red);
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        #status-en {
+            font-size: 18px;
+            font-weight: bold;
+            margin: 0 0 8px 0;
+            color: #333;
+        }
+        #status-zh {
+            font-size: 13px;
+            margin: 0;
+            color: #666;
+        }
+        .hidden {
+            display: none !important;
+        }
+        .color-success { color: #2e7d32 !important; }
+        .color-error { color: #d32f2f !important; }
+        .color-warning { color: #f57c00 !important; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>CCC Authentication System</h1>
+        <h2>中国强制性产品认证系统</h2>
+    </div>
+
+    <div class="camera-container">
+        <video id="video" autoplay playsinline></video>
+        <canvas id="canvas" style="display:none;"></canvas>
+        <div id="scan-effect" class="scan-line"></div>
+    </div>
+
+    <div class="btn-group">
+        <button id="btn-camera">
+            Start Camera
+            <span>启动相机</span>
+        </button>
+        <button id="btn-capture" disabled>
+            Capture Image
+            <span>拍摄图像</span>
+        </button>
+    </div>
+
+    <div class="btn-group">
+        <button id="btn-auth-left" disabled>
+            Authenticate (L)
+            <span>认证 (左)</span>
+        </button>
+        <button id="btn-auth-right" disabled>
+            Authenticate (R)
+            <span>认证 (右)</span>
+        </button>
+    </div>
+
+    <div id="status-box" class="hidden">
+        <p id="status-en"></p>
+        <p id="status-zh"></p>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const btnCamera = document.getElementById('btn-camera');
+        const btnCapture = document.getElementById('btn-capture');
+        const btnAuthLeft = document.getElementById('btn-auth-left');
+        const btnAuthRight = document.getElementById('btn-auth-right');
+        const scanEffect = document.getElementById('scan-effect');
+        const statusBox = document.getElementById('status-box');
+        const statusEn = document.getElementById('status-en');
+        const statusZh = document.getElementById('status-zh');
+
+        let stream = null;
+
+        // Start Camera
+        btnCamera.addEventListener('click', async () => {
+            try {
+                // Use rear camera if available
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment' } 
+                });
+                video.srcObject = stream;
+                video.style.display = 'block';
+                canvas.style.display = 'none';
+                
+                btnCapture.disabled = false;
+                btnCamera.disabled = true;
+                btnAuthLeft.disabled = true;
+                btnAuthRight.disabled = true;
+                statusBox.classList.add('hidden');
+            } catch (err) {
+                alert('Camera access is required.\n需要相机权限。');
+            }
+        });
+
+        // Capture Image
+        btnCapture.addEventListener('click', () => {
+            if (!stream) return;
+            
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            video.style.display = 'none';
+            canvas.style.display = 'block';
+            
+            // Stop camera stream
+            stream.getTracks().forEach(track => track.stop());
+            
+            btnCamera.disabled = false;
+            btnCapture.disabled = true;
+            btnAuthLeft.disabled = false;
+            btnAuthRight.disabled = false;
+        });
+
+        // Left Button (Uncertified)
+        btnAuthLeft.addEventListener('click', () => {
+            toggleAuthButtons(true);
+            statusBox.classList.remove('hidden');
+            scanEffect.style.display = 'none';
+            
+            statusEn.className = 'color-error';
+            statusEn.innerText = "Uncertified device.";
+            statusZh.innerText = "未经认证的设备。";
+            
+            toggleAuthButtons(false);
+        });
+
+        // Right Button (Certified with Scan Effect)
+        btnAuthRight.addEventListener('click', () => {
+            toggleAuthButtons(true);
+            statusBox.classList.remove('hidden');
+            scanEffect.style.display = 'block';
+            
+            statusEn.className = 'color-warning';
+            statusEn.innerText = "Verifying with Chinese government authentication data...";
+            statusZh.innerText = "正在核实中国政府认证数据...";
+            
+            // Simulate API verification delay
+            setTimeout(() => {
+                scanEffect.style.display = 'none';
+                statusEn.className = 'color-success';
+                statusEn.innerText = "China Compulsory Certificated.";
+                statusZh.innerText = "中国强制性产品认证合格。";
+                toggleAuthButtons(false);
+            }, 3500); // 3.5 seconds scanning time
+        });
+
+        function toggleAuthButtons(disabled) {
+            btnAuthLeft.disabled = disabled;
+            btnAuthRight.disabled = disabled;
+            btnCamera.disabled = disabled;
+        }
+    </script>
+</body>
+</html>
+
