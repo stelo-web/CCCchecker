@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Service Page</title>
+    <style>
+        :root {
+            --gov-red: #bd081c;
+            --success-green: #00e676;
+            --error-red: #ff1744;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100vh;
+            background-color: #fff;
+            font-family: sans-serif;
+            overflow: hidden;
+        }
+
+        /* 隠しコマンド用の判定エリア */
+        #command-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+        }
+        .tap-zone { flex: 1; }
+
+        /* メインシステム */
+        #main-system {
+            display: none;
+            flex-direction: column;
+            height: 100vh;
+            background-color: #000;
+            color: #e0e0e0;
+        }
+
+        .system-bar { background-color: var(--gov-red); height: 5px; width: 100%; }
+        .system-header { padding: 15px 20px; background: linear-gradient(to bottom, #333, #000); border-bottom: 1px solid #444; display: flex; justify-content: space-between; align-items: center; }
+        .brand-logo { font-weight: 900; font-size: 18px; letter-spacing: 2px; color: #fff; }
+        .node-info { font-size: 10px; text-align: right; color: #888; font-family: monospace; }
+        
+        .viewer-container { position: relative; flex-grow: 1; background: #000; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        #video { width: 100%; height: 100%; object-fit: cover; opacity: 0.5; }
+        
+        /* 巨大リザルト表示 */
+        #result-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            background: rgba(0,0,0,0.85);
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .big-icon {
+            font-size: 150px;
+            margin-bottom: 20px;
+            line-height: 1;
+        }
+
+        .big-text {
+            font-size: 42px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            text-align: center;
+        }
+
+        .sub-text {
+            font-size: 18px;
+            margin-top: 15px;
+            color: #ccc;
+        }
+
+        /* アニメーション用 */
+        .scan-line { position: absolute; width: 100%; height: 2px; background: var(--gov-red); box-shadow: 0 0 15px var(--gov-red); top: 0; display: none; z-index: 10; animation: sweep 2s linear infinite; }
+        @keyframes sweep { from { top: 0%; } to { top: 100%; } }
+
+        /* 操作パネル */
+        .control-panel { background: #111; padding: 25px; border-top: 1px solid #333; z-index: 200; }
+        .btn-trigger { width: 100%; background: var(--gov-red); color: white; border: none; padding: 20px; font-size: 18px; font-weight: bold; border-radius: 4px; cursor: pointer; text-transform: uppercase; }
+        .btn-trigger:disabled { background: #444; }
+    </style>
+</head>
+<body>
+
+    <div id="command-overlay">
+        <div class="tap-zone" onclick="handleTap('up')"></div>
+        <div class="tap-zone" onclick="handleTap('down')"></div>
+    </div>
+
+    <div id="main-system">
+        <div class="system-bar"></div>
+        <header class="system-header">
+            <div class="brand-logo">CCC VERIFY SYSTEM</div>
+            <div class="node-info">NODE: CN-BJ-04<br>STATUS: ENCRYPTED</div>
+        </header>
+
+        <main class="viewer-container">
+            <video id="video" autoplay playsinline></video>
+            <div id="scan-line" class="scan-line"></div>
+            
+            <div id="result-overlay">
+                <div id="res-icon" class="big-icon"></div>
+                <div id="res-title" class="big-text"></div>
+                <div id="res-sub" class="sub-text"></div>
+            </div>
+        </main>
+
+        <section class="control-panel">
+            <button id="btn-action" class="btn-trigger">START SCAN</button>
+        </section>
+    </div>
+
+    <script>
+        // 隠しコマンド
+        const secret = ['up', 'up', 'down', 'down', 'up', 'down', 'up', 'down'];
+        let buffer = [];
+        function handleTap(dir) {
+            buffer.push(dir);
+            if (buffer.length > secret.length) buffer.shift();
+            if (JSON.stringify(buffer) === JSON.stringify(secret)) {
+                document.getElementById('command-overlay').style.display = 'none';
+                document.getElementById('main-system').style.display = 'flex';
+            }
+        }
+
+        const video = document.getElementById('video');
+        const btn = document.getElementById('btn-action');
+        const scanLine = document.getElementById('scan-line');
+        const resultOverlay = document.getElementById('result-overlay');
+        const resIcon = document.getElementById('res-icon');
+        const resTitle = document.getElementById('res-title');
+        const resSub = document.getElementById('res-sub');
+
+        let mode = 'INIT';
+
+        btn.addEventListener('click', async (e) => {
+            if (mode === 'INIT') {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                video.srcObject = stream;
+                btn.textContent = 'ANALYZE DEVICE';
+                mode = 'SCAN';
+            } else if (mode === 'SCAN') {
+                const rect = btn.getBoundingClientRect();
+                const isPass = (e.clientX - rect.left) > (rect.width / 2);
+                
+                btn.disabled = true;
+                scanLine.style.display = 'block';
+                
+                setTimeout(() => {
+                    scanLine.style.display = 'none';
+                    btn.disabled = false;
+                    btn.textContent = 'RESTART';
+                    mode = 'RESET';
+                    
+                    resultOverlay.style.display = 'flex';
+                    if (isPass) {
+                        resIcon.textContent = '✓';
+                        resIcon.style.color = 'var(--success-green)';
+                        resTitle.textContent = 'CCC DETECTED';
+                        resTitle.style.color = 'var(--success-green)';
+                        resSub.textContent = 'Authentication Passed (合格)';
+                    } else {
+                        resIcon.textContent = '✕';
+                        resIcon.style.color = 'var(--error-red)';
+                        resTitle.textContent = 'NOT FOUND';
+                        resTitle.style.color = 'var(--error-red)';
+                        resSub.textContent = 'Security Alert: Uncertified (不合格)';
+                    }
+                }, 3000);
+            } else {
+                location.reload();
+            }
+        });
+    </script>
+</body>
+</html>
