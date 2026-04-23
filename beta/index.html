@@ -9,39 +9,18 @@
             --gov-red: #bd081c;
             --success-green: #00e676;
             --error-red: #ff1744;
+            --ai-blue: #00e5ff;
         }
 
         body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100vh;
-            background-color: #fff;
-            font-family: sans-serif;
-            overflow: hidden;
+            margin: 0; padding: 0; width: 100%; height: 100vh;
+            background-color: #fff; font-family: sans-serif; overflow: hidden;
         }
 
-        /* 隠しコマンド用の判定エリア */
-        #command-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 9999;
-            display: flex;
-            flex-direction: column;
-        }
+        #command-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999; display: flex; flex-direction: column; }
         .tap-zone { flex: 1; }
 
-        /* メインシステム */
-        #main-system {
-            display: none;
-            flex-direction: column;
-            height: 100vh;
-            background-color: #000;
-            color: #e0e0e0;
-        }
+        #main-system { display: none; flex-direction: column; height: 100vh; background-color: #000; color: #e0e0e0; }
 
         .system-bar { background-color: var(--gov-red); height: 5px; width: 100%; }
         .system-header { padding: 15px 20px; background: linear-gradient(to bottom, #333, #000); border-bottom: 1px solid #444; display: flex; justify-content: space-between; align-items: center; }
@@ -49,53 +28,42 @@
         .node-info { font-size: 10px; text-align: right; color: #888; font-family: monospace; }
         
         .viewer-container { position: relative; flex-grow: 1; background: #000; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-        #video { width: 100%; height: 100%; object-fit: cover; opacity: 0.5; }
-        
-        /* 巨大リザルト表示 */
-        #result-overlay {
+        video, canvas { position: absolute; width: 100%; height: 100%; object-fit: cover; }
+        video { opacity: 0.6; }
+
+        /* 物体認識用ダミー枠 */
+        #detection-box {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            border: 2px solid var(--ai-blue);
             display: none;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 100;
-            background: rgba(0,0,0,0.85);
-            animation: fadeIn 0.3s ease-out;
+            z-index: 50;
+            box-shadow: 0 0 15px var(--ai-blue);
+            pointer-events: none;
+        }
+        #detection-box::before {
+            content: "OBJECT: CCC_MARK_V3";
+            position: absolute; top: -25px; left: -2px;
+            background: var(--ai-blue); color: #000;
+            font-size: 10px; font-weight: bold; padding: 2px 5px;
+        }
+
+        #result-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 100; background: rgba(0,0,0,0.8); animation: fadeIn 0.3s ease-out;
         }
 
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-        .big-icon {
-            font-size: 150px;
-            margin-bottom: 20px;
-            line-height: 1;
-        }
+        .big-icon { font-size: 180px; margin-bottom: 20px; }
+        .big-text { font-size: 50px; font-weight: 900; text-align: center; }
+        .sub-text { font-size: 20px; margin-top: 15px; color: #ccc; }
 
-        .big-text {
-            font-size: 42px;
-            font-weight: 900;
-            letter-spacing: 2px;
-            text-align: center;
-        }
+        .scan-line { position: absolute; width: 100%; height: 2px; background: var(--ai-blue); box-shadow: 0 0 15px var(--ai-blue); top: 0; display: none; z-index: 60; animation: sweep 1.5s ease-in-out infinite; }
+        @keyframes sweep { 0% { top: 20%; } 50% { top: 80%; } 100% { top: 20%; } }
 
-        .sub-text {
-            font-size: 18px;
-            margin-top: 15px;
-            color: #ccc;
-        }
-
-        /* アニメーション用 */
-        .scan-line { position: absolute; width: 100%; height: 2px; background: var(--gov-red); box-shadow: 0 0 15px var(--gov-red); top: 0; display: none; z-index: 10; animation: sweep 2s linear infinite; }
-        @keyframes sweep { from { top: 0%; } to { top: 100%; } }
-
-        /* 操作パネル */
         .control-panel { background: #111; padding: 25px; border-top: 1px solid #333; z-index: 200; }
-        .btn-trigger { width: 100%; background: var(--gov-red); color: white; border: none; padding: 20px; font-size: 18px; font-weight: bold; border-radius: 4px; cursor: pointer; text-transform: uppercase; }
-        .btn-trigger:disabled { background: #444; }
+        .btn-trigger { width: 100%; background: var(--gov-red); color: white; border: none; padding: 20px; font-size: 18px; font-weight: bold; border-radius: 4px; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -108,12 +76,14 @@
     <div id="main-system">
         <div class="system-bar"></div>
         <header class="system-header">
-            <div class="brand-logo">CCC VERIFY SYSTEM</div>
-            <div class="node-info">NODE: CN-BJ-04<br>STATUS: ENCRYPTED</div>
+            <div class="brand-logo">CCC AI ANALYZER</div>
+            <div class="node-info">MODE: TARGET_LOCK<br>SYNC: CLOUD_AUTH</div>
         </header>
 
-        <main class="viewer-container">
+        <main class="viewer-container" id="viewport">
             <video id="video" autoplay playsinline></video>
+            <canvas id="freeze-frame" style="display:none;"></canvas>
+            <div id="detection-box"></div>
             <div id="scan-line" class="scan-line"></div>
             
             <div id="result-overlay">
@@ -124,12 +94,11 @@
         </main>
 
         <section class="control-panel">
-            <button id="btn-action" class="btn-trigger">START SCAN</button>
+            <button id="btn-action" class="btn-trigger">START SYSTEM</button>
         </section>
     </div>
 
     <script>
-        // 隠しコマンド
         const secret = ['up', 'up', 'down', 'down', 'up', 'down', 'up', 'down'];
         let buffer = [];
         function handleTap(dir) {
@@ -142,27 +111,42 @@
         }
 
         const video = document.getElementById('video');
+        const canvas = document.getElementById('freeze-frame');
         const btn = document.getElementById('btn-action');
         const scanLine = document.getElementById('scan-line');
+        const detectBox = document.getElementById('detection-box');
         const resultOverlay = document.getElementById('result-overlay');
-        const resIcon = document.getElementById('res-icon');
-        const resTitle = document.getElementById('res-title');
-        const resSub = document.getElementById('res-sub');
 
         let mode = 'INIT';
+        let localStream = null;
 
         btn.addEventListener('click', async (e) => {
             if (mode === 'INIT') {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-                video.srcObject = stream;
+                localStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                video.srcObject = localStream;
                 btn.textContent = 'ANALYZE DEVICE';
                 mode = 'SCAN';
             } else if (mode === 'SCAN') {
-                const rect = btn.getBoundingClientRect();
-                const isPass = (e.clientX - rect.left) > (rect.width / 2);
+                const isPass = (e.clientX - btn.getBoundingClientRect().left) > (btn.offsetWidth / 2);
                 
+                // 1. 映像を凍結
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                canvas.getContext('2d').drawImage(video, 0, 0);
+                video.style.display = 'none';
+                canvas.style.display = 'block';
+                if (localStream) localStream.getTracks().forEach(track => track.stop());
+
+                // 2. 物体認識枠を表示 (ダミーの位置に配置)
+                detectBox.style.display = 'block';
+                detectBox.style.width = '150px';
+                detectBox.style.height = '150px';
+                detectBox.style.top = '30%';
+                detectBox.style.left = 'calc(50% - 75px)';
+
                 btn.disabled = true;
                 scanLine.style.display = 'block';
+                btn.textContent = 'PROCESSING...';
                 
                 setTimeout(() => {
                     scanLine.style.display = 'none';
@@ -172,23 +156,26 @@
                     
                     resultOverlay.style.display = 'flex';
                     if (isPass) {
-                        resIcon.textContent = '✓';
-                        resIcon.style.color = 'var(--success-green)';
-                        resTitle.textContent = 'CCC DETECTED';
-                        resTitle.style.color = 'var(--success-green)';
-                        resSub.textContent = 'Authentication Passed (合格)';
+                        renderResult('✓', 'var(--success-green)', 'CCC DETECTED', 'VALIDATED OK');
                     } else {
-                        resIcon.textContent = '✕';
-                        resIcon.style.color = 'var(--error-red)';
-                        resTitle.textContent = 'NOT FOUND';
-                        resTitle.style.color = 'var(--error-red)';
-                        resSub.textContent = 'Security Alert: Uncertified (不合格)';
+                        renderResult('✕', 'var(--error-red)', 'NOT FOUND', 'ACCESS DENIED');
                     }
                 }, 3000);
             } else {
                 location.reload();
             }
         });
+
+        function renderResult(icon, color, title, sub) {
+            const resIcon = document.getElementById('res-icon');
+            const resTitle = document.getElementById('res-title');
+            const resSub = document.getElementById('res-sub');
+            resIcon.textContent = icon;
+            resIcon.style.color = color;
+            resTitle.textContent = title;
+            resTitle.style.color = color;
+            resSub.textContent = sub;
+        }
     </script>
 </body>
 </html>
