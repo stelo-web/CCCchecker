@@ -3,251 +3,169 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CCC Verification Terminal</title>
+    <title>Service Page</title>
     <style>
         :root {
             --gov-red: #bd081c;
-            --panel-bg: #1a1a1a;
-            --text-silver: #e0e0e0;
-            --accent-blue: #007bff;
         }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: #000;
+        body, html {
             margin: 0;
             padding: 0;
-            color: var(--text-silver);
-            display: flex;
-            flex-direction: column;
+            width: 100%;
             height: 100vh;
+            background-color: #fff; /* 初期は真っ白 */
+            font-family: sans-serif;
             overflow: hidden;
         }
 
-        /* Top Status Bar */
-        .system-bar {
-            background-color: var(--gov-red);
-            height: 5px;
-            width: 100%;
-        }
-
-        .system-header {
-            padding: 15px 20px;
-            background: linear-gradient(to bottom, #333, #000);
-            border-bottom: 1px solid #444;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .brand-logo {
-            font-weight: 900;
-            font-size: 20px;
-            letter-spacing: 2px;
-            color: #fff;
-        }
-
-        .node-info {
-            font-size: 10px;
-            text-align: right;
-            color: #888;
-            font-family: monospace;
-        }
-
-        /* Camera Viewport */
-        .viewer-container {
-            position: relative;
-            flex-grow: 1;
-            background: #000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        #video {
+        /* 隠しコマンド用の判定エリア */
+        #command-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
-            object-fit: cover;
-            opacity: 0.7;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+        }
+        .tap-zone { flex: 1; }
+
+        /* メインシステム（初期は非表示） */
+        #main-system {
+            display: none;
+            flex-direction: column;
+            height: 100vh;
+            background-color: #000;
+            color: #e0e0e0;
         }
 
-        .reticle {
-            position: absolute;
-            width: 250px;
-            height: 180px;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            pointer-events: none;
-            box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.5);
-        }
-
-        .reticle::before, .reticle::after {
-            content: '';
-            position: absolute;
-            width: 20px;
-            height: 20px;
-            border: 2px solid var(--gov-red);
-        }
+        /* --- 以下、前回のシステムデザイン --- */
+        .system-bar { background-color: var(--gov-red); height: 5px; width: 100%; }
+        .system-header { padding: 15px 20px; background: linear-gradient(to bottom, #333, #000); border-bottom: 1px solid #444; display: flex; justify-content: space-between; align-items: center; }
+        .brand-logo { font-weight: 900; font-size: 20px; letter-spacing: 2px; color: #fff; }
+        .node-info { font-size: 10px; text-align: right; color: #888; font-family: monospace; }
+        .viewer-container { position: relative; flex-grow: 1; background: #000; display: flex; align-items: center; justify-content: center; }
+        #video { width: 100%; height: 100%; object-fit: cover; opacity: 0.7; }
+        .reticle { position: absolute; width: 250px; height: 180px; border: 1px solid rgba(255, 255, 255, 0.3); pointer-events: none; box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.5); }
+        .reticle::before, .reticle::after { content: ''; position: absolute; width: 20px; height: 20px; border: 2px solid var(--gov-red); }
         .reticle::before { top: -2px; left: -2px; border-right: 0; border-bottom: 0; }
         .reticle::after { bottom: -2px; right: -2px; border-left: 0; border-top: 0; }
-
-        /* Scanning Animation */
-        .scan-line {
-            position: absolute;
-            width: 250px;
-            height: 2px;
-            background: var(--gov-red);
-            box-shadow: 0 0 10px var(--gov-red);
-            animation: sweep 2s linear infinite;
-            display: none;
-        }
-
-        @keyframes sweep {
-            from { transform: translateY(-90px); }
-            to { transform: translateY(90px); }
-        }
-
-        /* Control Panel */
-        .control-panel {
-            background: #111;
-            padding: 20px;
-            border-top: 1px solid #333;
-        }
-
-        .status-msg {
-            font-family: monospace;
-            font-size: 13px;
-            margin-bottom: 15px;
-            height: 20px;
-            color: #aaa;
-        }
-
-        .btn-trigger {
-            width: 100%;
-            background: var(--gov-red);
-            color: white;
-            border: none;
-            padding: 18px;
-            font-size: 16px;
-            font-weight: bold;
-            border-radius: 2px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            cursor: pointer;
-        }
-
-        .btn-trigger:disabled {
-            background: #444;
-            color: #888;
-        }
-
-        /* Result Overlays */
-        .result-overlay {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 80%;
-            padding: 20px;
-            text-align: center;
-            display: none;
-            z-index: 100;
-            border-radius: 4px;
-            backdrop-filter: blur(10px);
-        }
-
+        .scan-line { position: absolute; width: 250px; height: 2px; background: var(--gov-red); box-shadow: 0 0 10px var(--gov-red); animation: sweep 2s linear infinite; display: none; }
+        @keyframes sweep { from { transform: translateY(-90px); } to { transform: translateY(90px); } }
+        .control-panel { background: #111; padding: 20px; border-top: 1px solid #333; }
+        .status-msg { font-family: monospace; font-size: 13px; margin-bottom: 15px; height: 20px; color: #aaa; }
+        .btn-trigger { width: 100%; background: var(--gov-red); color: white; border: none; padding: 18px; font-size: 16px; font-weight: bold; border-radius: 2px; text-transform: uppercase; cursor: pointer; }
+        .result-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80%; padding: 20px; text-align: center; display: none; z-index: 100; border-radius: 4px; backdrop-filter: blur(10px); }
         .pass { background: rgba(0, 100, 0, 0.8); border: 1px solid #0f0; color: #fff; }
         .fail { background: rgba(100, 0, 0, 0.8); border: 1px solid #f00; color: #fff; }
-
     </style>
 </head>
 <body>
 
-    <div class="system-bar"></div>
-    <header class="system-header">
-        <div class="brand-logo">CCC VERIFY</div>
-        <div class="node-info">
-            NODE: CN-BJ-04<br>
-            SECURE ACCESS: ENABLED
-        </div>
-    </header>
+    <div id="command-overlay">
+        <div class="tap-zone" onclick="handleTap('up')"></div>
+        <div class="tap-zone" onclick="handleTap('down')"></div>
+    </div>
 
-    <main class="viewer-container">
-        <video id="video" autoplay playsinline></video>
-        <div class="reticle"></div>
-        <div id="scan-line" class="scan-line"></div>
-        
-        <div id="result" class="result-overlay">
-            <h2 id="result-title" style="margin:0;"></h2>
-            <p id="result-body" style="font-size: 14px; margin-top: 10px;"></p>
-        </div>
-    </main>
+    <div id="main-system">
+        <div class="system-bar"></div>
+        <header class="system-header">
+            <div class="brand-logo">CCC VERIFY</div>
+            <div class="node-info">NODE: CN-BJ-04<br>SECURE ACCESS: ENABLED</div>
+        </header>
 
-    <section class="control-panel">
-        <div id="status-msg" class="status-msg">READY TO SCAN...</div>
-        <button id="btn-action" class="btn-trigger">Initialize System</button>
-    </section>
+        <main class="viewer-container">
+            <video id="video" autoplay playsinline></video>
+            <div class="reticle"></div>
+            <div id="scan-line" class="scan-line"></div>
+            <div id="result" class="result-overlay">
+                <h2 id="result-title" style="margin:0;"></h2>
+                <p id="result-body" style="font-size: 14px; margin-top: 10px;"></p>
+            </div>
+        </main>
+
+        <section class="control-panel">
+            <div id="status-msg" class="status-msg">SYSTEM STANDBY...</div>
+            <button id="btn-action" class="btn-trigger">Initialize System</button>
+        </section>
+    </div>
 
     <script>
+        // コマンド判定ロジック
+        const secretCommand = ['up', 'up', 'down', 'down', 'up', 'down', 'up', 'down'];
+        let inputBuffer = [];
+        let timer = null;
+
+        function handleTap(direction) {
+            inputBuffer.push(direction);
+            
+            // 入力が途切れたらバッファをクリア（3秒間）
+            clearTimeout(timer);
+            timer = setTimeout(() => { inputBuffer = []; }, 3000);
+
+            // コマンドチェック
+            if (inputBuffer.length > secretCommand.length) {
+                inputBuffer.shift();
+            }
+
+            if (JSON.stringify(inputBuffer) === JSON.stringify(secretCommand)) {
+                activateSystem();
+            }
+        }
+
+        function activateSystem() {
+            document.getElementById('command-overlay').style.display = 'none';
+            document.getElementById('main-system').style.display = 'flex';
+            document.body.style.backgroundColor = '#000';
+        }
+
+        // --- 以下、システム動作ロジック ---
         const video = document.getElementById('video');
         const btn = document.getElementById('btn-action');
         const status = document.getElementById('status-msg');
         const scanLine = document.getElementById('scan-line');
         const result = document.getElementById('result');
-        const resTitle = document.getElementById('result-title');
-        const resBody = document.getElementById('result-body');
-
         let mode = 'START';
 
         btn.addEventListener('click', async (e) => {
             if (mode === 'START') {
                 try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ 
-                        video: { facingMode: 'environment' } 
-                    });
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
                     video.srcObject = stream;
                     btn.textContent = 'Capture & Analyze';
-                    status.textContent = 'WAITING FOR INPUT...';
+                    status.textContent = 'READY FOR SCAN';
                     mode = 'CAPTURE';
-                } catch (err) {
-                    status.textContent = 'ERROR: CAMERA ACCESS DENIED';
-                }
+                } catch (err) { alert('Access Denied'); }
             } else if (mode === 'CAPTURE') {
-                // 隠し判定：ボタンの右側半分を押すと合格
                 const rect = btn.getBoundingClientRect();
                 const isPass = (e.clientX - rect.left) > (rect.width / 2);
-                runAnalysis(isPass);
+                
+                btn.disabled = true;
+                scanLine.style.display = 'block';
+                status.textContent = 'VERIFYING WITH CNCA...';
+                
+                setTimeout(() => {
+                    scanLine.style.display = 'none';
+                    btn.disabled = false;
+                    btn.textContent = 'Reset';
+                    mode = 'RESET';
+                    result.style.display = 'block';
+                    if (isPass) {
+                        result.className = 'result-overlay pass';
+                        document.getElementById('result-title').textContent = 'VALIDATED';
+                        document.getElementById('result-body').textContent = 'CCC Standard Compliance Confirmed.';
+                    } else {
+                        result.className = 'result-overlay fail';
+                        document.getElementById('result-title').textContent = 'UNAUTHORIZED';
+                        document.getElementById('result-body').textContent = 'Security Alert: Product not found.';
+                    }
+                }, 3000);
             } else {
                 location.reload();
             }
         });
-
-        function runAnalysis(isPass) {
-            btn.disabled = true;
-            scanLine.style.display = 'block';
-            status.textContent = 'CONNECTING TO CNCA CLOUD...';
-            
-            setTimeout(() => { status.textContent = 'EXTRACTING DEVICE SIGNATURE...'; }, 1000);
-            setTimeout(() => { status.textContent = 'VERIFYING CERTIFICATE ID...'; }, 2000);
-
-            setTimeout(() => {
-                scanLine.style.display = 'none';
-                btn.disabled = false;
-                btn.textContent = 'Reset System';
-                mode = 'RESET';
-
-                result.style.display = 'block';
-                if (isPass) {
-                    result.className = 'result-overlay pass';
-                    resTitle.textContent = 'VALIDATED';
-                    resBody.textContent = 'CCC Standard Compliance Confirmed.';
-                } else {
-                    result.className = 'result-overlay fail';
-                    resTitle.textContent = 'UNAUTHORIZED';
-                    resBody.textContent = 'Security Alert: Product not found in database.';
-                }
-                status.textContent = 'ANALYSIS COMPLETE.';
-            }, 3500);
-        }
     </script>
 </body>
 </html>
