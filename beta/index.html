@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Anker Device Verification</title>
+    <title>System Verification</title>
     <style>
         :root { --gov-red: #bd081c; --success-green: #00e676; --error-red: #ff1744; --scan-blue: #00e5ff; }
         body, html { margin: 0; padding: 0; width: 100%; height: 100vh; background-color: #fff; font-family: 'Courier New', monospace; overflow: hidden; }
@@ -14,7 +14,7 @@
         #main-system { display: none; flex-direction: column; height: 100vh; background-color: #000; color: #e0e0e0; }
         .system-bar { background-color: var(--gov-red); height: 5px; width: 100%; }
         .system-header { padding: 15px 20px; background: linear-gradient(to bottom, #333, #000); border-bottom: 1px solid #444; display: flex; justify-content: space-between; align-items: center; }
-        .brand-logo { font-weight: 900; font-size: 16px; color: #fff; letter-spacing: 1px; }
+        .brand-logo { font-weight: 900; font-size: 16px; color: #fff; letter-spacing: 2px; }
 
         .viewer-container { position: relative; flex-grow: 1; background: #000; display: flex; align-items: center; justify-content: center; overflow: hidden; }
         video, canvas { position: absolute; width: 100%; height: 100%; object-fit: cover; }
@@ -23,13 +23,13 @@
         #result-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: none; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 100; background: rgba(0,0,0,0.9); animation: zoomIn 0.2s ease-out;
+            z-index: 100; background: rgba(0,0,0,0.9); animation: zoomIn 0.15s ease-out;
         }
         @keyframes zoomIn { from { transform: scale(1.1); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
         .big-icon { font-size: 150px; line-height: 1; margin-bottom: 20px; }
         .big-text { font-size: 32px; font-weight: 900; letter-spacing: 1px; text-align: center; line-height: 1.2; }
-        .sub-text { font-size: 14px; margin-top: 10px; color: #aaa; }
+        .sub-info { font-size: 12px; margin-top: 15px; color: #888; text-align: center; font-family: monospace; }
 
         .scan-line { position: absolute; width: 100%; height: 2px; background: var(--scan-blue); box-shadow: 0 0 15px var(--scan-blue); top: 0; display: none; z-index: 60; animation: sweep 2s infinite linear; }
         @keyframes sweep { 0% { top: 0%; } 100% { top: 100%; } }
@@ -49,8 +49,8 @@
     <div id="main-system">
         <div class="system-bar"></div>
         <header class="system-header">
-            <div class="brand-logo">ANKER CERTIFICATION CHECK</div>
-            <div style="font-size:9px; color:#888; text-align:right;">ID: A11215-S2<br>STATUS: ENCRYPTED</div>
+            <div class="brand-logo">DEVICE VERIFIER</div>
+            <div style="font-size:9px; color:#666; text-align:right;">SECURE ACCESS<br>NODE: 0x7FF4A</div>
         </header>
 
         <main class="viewer-container">
@@ -60,13 +60,17 @@
             
             <div id="result-overlay">
                 <div id="res-icon" class="big-icon">✓</div>
-                <div id="res-title" class="big-text">CCC DETECTED<br><span style="font-size: 24px;">Anker A11215</span></div>
-                <div class="sub-text">Verification Date: 2026-04-24</div>
+                <div id="res-title" class="big-text">CCC DETECTED</div>
+                <div id="res-detail" class="sub-info">
+                    MODEL: A11215 SERIES<br>
+                    STATUS: AUTHENTICATED<br>
+                    REF: 2026-04-24-SEC
+                </div>
             </div>
         </main>
 
         <section class="control-panel">
-            <button id="btn-action" class="btn-trigger">AWAITING COMMAND...</button>
+            <button id="btn-action" class="btn-trigger">AWAITING INPUT...</button>
         </section>
     </div>
 
@@ -79,7 +83,7 @@
             if (JSON.stringify(buffer) === JSON.stringify(secret)) {
                 document.getElementById('command-overlay').style.display = 'none';
                 document.getElementById('main-system').style.display = 'flex';
-                document.getElementById('btn-action').textContent = 'BOOT DEVICE SCANNER';
+                document.getElementById('btn-action').textContent = 'BOOT SCANNER';
             }
         }
 
@@ -97,10 +101,9 @@
             if (mode === 'INIT') {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
                 video.srcObject = stream;
-                btn.textContent = 'ANALYZE ANKER A11215';
+                btn.textContent = 'RUN ANALYSIS';
                 mode = 'SCAN';
             } else if (mode === 'SCAN') {
-                // 映像を固定
                 canvas.width = video.videoWidth;
                 canvas.height = video.videoHeight;
                 canvas.getContext('2d').drawImage(video, 0, 0);
@@ -109,21 +112,18 @@
 
                 btn.disabled = true;
                 scanLine.style.display = 'block';
-                btn.textContent = 'CROSS-REFERENCING DATABASE...';
+                btn.textContent = 'IDENTIFYING HARDWARE...';
                 
-                // 演出時間
                 setTimeout(() => {
                     scanLine.style.display = 'none';
                     resultOverlay.style.display = 'flex';
                     btn.disabled = false;
-                    btn.textContent = 'SYSTEM RESET';
+                    btn.textContent = 'REBOOT SYSTEM';
                     mode = 'RESET';
                     
-                    // A11215固定の合格表示
-                    resIcon.textContent = '✓';
                     resIcon.style.color = 'var(--success-green)';
                     resTitle.style.color = 'var(--success-green)';
-                }, 3000);
+                }, 3200);
             } else {
                 location.reload();
             }
